@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Captura de Plan</title>
+<style>
+:root{--navy:#1e3a5f;--blue:#2f6db5;--sky:#c9d3df;--light:#f2f5f9;--line:#dce4ee;--grey:#5f6b7a;--text:#1b2a41;--pos:#1a7f4b;--neg:#c0392b;--amber:#e9a23b}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;color:var(--text);background:#fff}
+header{background:var(--navy);color:#fff;padding:14px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+header h1{font-size:20px;margin:0;font-weight:700}
+header .sub{color:var(--sky);font-size:13px}
+header .sp{flex:1}
+.pill{display:inline-flex;border:1px solid var(--sky);border-radius:999px;overflow:hidden}
+.pill button{background:transparent;color:var(--sky);border:0;padding:6px 14px;font-size:13px;cursor:pointer}
+.pill button.on{background:#fff;color:var(--navy);font-weight:700}
+.link{background:none;border:0;color:var(--sky);font-size:13px;cursor:pointer;text-decoration:underline}
+main{max-width:1180px;margin:0 auto;padding:20px 24px 40px;display:grid;gap:18px}
+.card{background:var(--light);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+h2{font-size:15px;margin:0 0 12px;color:var(--navy)}
+.filters{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+label{font-size:12px;color:var(--grey);display:block;margin-bottom:4px;font-weight:700}
+select,input[type=text]{width:100%;height:36px;border:1px solid #b9c2cc;border-radius:6px;padding:0 10px;font-size:14px;background:#fff;color:var(--text)}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.kpi .n{font-size:22px;font-weight:700;color:var(--navy)}
+.kpi .l{font-size:12px;color:var(--grey)}
+.neg{color:var(--neg)!important}.pos{color:var(--pos)!important}
+.formula{display:flex;gap:10px;align-items:center}
+.formula .fx{font:italic 700 20px "Times New Roman",serif;color:var(--blue)}
+.formula input{font-family:Consolas,monospace;font-size:16px;height:42px}
+.btn{height:42px;padding:0 20px;border:0;border-radius:6px;background:var(--blue);color:#fff;font-weight:700;font-size:14px;cursor:pointer;white-space:nowrap}
+.btn:disabled{background:#b9c2cc;cursor:default}
+.btn.sec{background:#fff;color:var(--navy);border:1px solid #b9c2cc;font-weight:400}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.chip{border:1px solid #b9c2cc;background:#fff;border-radius:999px;padding:5px 12px;font:13px Consolas,monospace;cursor:pointer;color:var(--navy)}
+.chip:hover{border-color:var(--blue)}
+.prev{margin-top:12px;font-size:15px;min-height:22px}
+.prev.error{color:var(--neg)}.prev.ok{color:var(--navy)}
+.msg{margin-top:10px;padding:10px 12px;border-radius:6px;font-size:14px;background:#e8f0f9;color:var(--navy)}
+.msg.err{background:#fbe9e6;color:var(--neg)}
+table{border-collapse:collapse;width:100%;font-size:13px;background:#fff}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{background:var(--navy);color:#fff;font-weight:700}
+td.chg{background:#fff4de}
+.hist li{font-size:13px;margin-bottom:6px}
+.hint{font-size:12px;color:var(--grey);margin-top:8px}
+dialog{border:0;border-radius:10px;padding:20px 24px;width:min(560px,92vw)}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+dialog .row{margin-bottom:12px}
+.banner{background:#fff4de;color:#7a4b00;font-size:13px;padding:8px 24px}
+@media(max-width:800px){.filters{grid-template-columns:1fr 1fr}.kpis{grid-template-columns:1fr 1fr}.formula{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Captura de Plan</h1><div class="sub">Plan vs. Actuals · ajusta con fórmulas y guarda · v6</div></div>
+  <div class="sp"></div>
+  <div class="pill" role="group" aria-label="Modo"><button id="mDemo" class="on">Demo</button><button id="mLocal">Local</button><button id="mFabric">Fabric</button></div>
+  <button class="link" id="refBtn" title="Vuelve a leer los datos de Fabric">Actualizar datos</button>
+  <button class="link" id="cfgBtn">Configuración</button>
+</header>
+<div class="banner" id="banner">Modo demo: datos ficticios guardados solo en esta página. Para guardar en Fabric, abre Configuración.</div>
+<main>
+  <section class="card">
+    <h2>1. Elige qué parte del Plan ajustar</h2>
+    <div class="filters">
+      <div><label for="fCat">Categoría</label><select id="fCat"></select></div>
+      <div><label for="fReg">Región</label><select id="fReg"></select></div>
+      <div><label for="fSub">Subregión</label><select id="fSub"></select></div>
+      <div><label for="fTri">Trimestre</label><select id="fTri"></select></div>
+    </div>
+    <div class="kpis" style="margin-top:14px">
+      <div class="kpi"><div class="n" id="kOrig">–</div><div class="l">Plan original</div></div>
+      <div class="kpi"><div class="n" id="kPlan">–</div><div class="l">Plan actual</div></div>
+      <div class="kpi"><div class="n" id="kAct">–</div><div class="l">Actuals</div></div>
+      <div class="kpi"><div class="n" id="kVar">–</div><div class="l">Var (Actuals − Plan)</div></div>
+      <div class="kpi"><div class="n" id="kVarP">–</div><div class="l">Var %</div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>2. Escribe la fórmula</h2>
+    <div class="formula">
+      <span class="fx">fx</span>
+      <input type="text" id="fx" placeholder="+10%, -5%, +2m, =150m, =actuals*1.05, =original" autocomplete="off" spellcheck="false">
+      <button class="btn" id="save" disabled>Aplicar ajuste</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="prev" id="prev">Elige una selección y escribe una fórmula.</div>
+    <div id="msg"></div>
+    <div class="hint">Reglas: el porcentaje lleva signo (+10%, -5%); k = mil y m = millón; con * se usa un factor (*1.1).</div>
+  </section>
+
+  <section class="card">
+    <h2>3. Plan por categoría y trimestre (MXN, millones)</h2>
+    <div style="overflow:auto"><table id="tbl"></table></div>
+  </section>
+
+  <section class="card">
+    <h2>Cambios hechos en esta sesión</h2>
+    <ul class="hist" id="hist" style="margin:0;padding-left:18px"><li style="color:var(--grey)">Todavía no hay cambios.</li></ul>
+  </section>
+</main>
+
+<dialog id="dlg">
+  <h2>Configuración de Fabric</h2>
+  <div class="row"><label for="cTenant">Tenant ID</label><input type="text" id="cTenant"></div>
+  <div class="row"><label for="cClient">Client ID (registro de aplicación)</label><input type="text" id="cClient"></div>
+  <div class="row"><label for="cUrlAj">URL de la función ajustar_plan_formula</label><input type="text" id="cUrlAj" placeholder="https://…/functions/ajustar_plan_formula/invoke"></div>
+  <div class="row"><label for="cUrlLe">URL de la función obtener_plan</label><input type="text" id="cUrlLe" placeholder="https://…/functions/obtener_plan/invoke"></div>
+  <div class="hint">Copia las URL desde Fabric (función > Copy function URL). Se guardan solo en este navegador.</div>
+  <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px"><button class="btn sec" id="cCancel">Cancelar</button><button class="btn" id="cOk">Guardar</button></div>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.1/lib/msal-browser.min.js"></script>
+<script>
+"use strict";
+/* ================== Datos de demostración (ficticios) ================== */
+const MESES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+function demoRows(){
+  const cats={"Lavandería":140e6,"Hogar y superficies":80e6,"Cuidado de trastes":55e6,"Cloro y desinfección":95e6};
+  const subs=[["Norte","Noreste",.14],["Norte","Noroeste",.09],["Centro","Valle de México",.24],["Centro","Bajío",.13],["Occidente","Jalisco y Nayarit",.11],["Occidente","Michoacán y Colima",.05],["Sureste","Golfo",.14],["Sureste","Península de Yucatán",.10]];
+  const est=[.95,.93,1,1.02,1.05,1.04,1,1,.98,1.02,1.05,1.12];
+  let seed=7;const rnd=()=>(seed=(seed*1664525+1013904223)%4294967296)/4294967296;
+  const out=[];
+  for(const [c,b] of Object.entries(cats))for(const [r,s,w] of subs)for(let m=0;m<12;m++){
+    const p=Math.round(b*w*est[m]*100)/100;
+    out.push({cat:c,reg:r,sub:s,tri:"Q"+(Math.floor(m/3)+1),mes:MESES[m],plan:p,base:p,act:Math.round(p*(1+(rnd()*.12-.056))*100)/100});
+  }
+  return out;
+}
+/* ================== Intérprete de fórmulas (igual al de la función Python) ================== */
+const NUM="(\\d+(?:\\.\\d+)?)",NUMS=NUM+"([km]?)";
+const AYUDA="Ejemplos: +20%, -5%, +10k, =150m, =actuals, =actuals*1.05, =original";
+const suf=(n,s)=>Number(n)*(s==="k"?1e3:s==="m"?1e6:1);
+function interpretar(txt){
+  const f=(txt||"").trim().toLowerCase().replace(/[ ,$]/g,"");
+  if(!f)return{error:"Escribe una fórmula. "+AYUDA};
+  let m=new RegExp("^=?(actuals|original)(?:([*+\\-])"+NUM+"(%?))?$").exec(f);
+  if(m){const base=m[1],op=m[2],n=Number(m[3]),pct=m[4];
+    if(!op)return{modo:base,valor:1};
+    if(op==="*")return pct?{error:`Con * usa un factor, por ejemplo =${base}*1.05`}:{modo:base,valor:n};
+    if(!pct)return{error:`Con + o - sobre ${base} usa porcentaje, por ejemplo =${base}+5%`};
+    return{modo:base,valor:1+(op==="+"?n/100:-n/100)};}
+  m=new RegExp("^([+\\-])"+NUM+"%$").exec(f); if(m)return{modo:"pct",valor:m[1]==="+"?Number(m[2]):-Number(m[2])};
+  if(new RegExp("^"+NUM+"%$").test(f))return{error:"Escribe el signo del porcentaje: +20% o -20%."};
+  m=new RegExp("^\\*"+NUM+"$").exec(f); if(m)return{modo:"pct",valor:(Number(m[1])-1)*100};
+  m=new RegExp("^="+NUMS+"$").exec(f); if(m)return{modo:"fijo",valor:suf(m[1],m[2])};
+  m=new RegExp("^([+\\-])"+NUMS+"$").exec(f); if(m){const v=suf(m[2],m[3]);return{modo:"suma",valor:m[1]==="+"?v:-v};}
+  if(new RegExp("^"+NUMS+"$").test(f))return{error:"Indica qué hacer con el número: =150m para fijarlo o +150k para sumarlo."};
+  return{error:"No entendí la fórmula. "+AYUDA};
+}
+const r2=x=>Math.round((x+Number.EPSILON)*100)/100;
+/* Nuevos valores por registro (mismo reparto que la función de Fabric) */
+function nuevosPorRegistro(rows,p){
+  const tot=rows.reduce((a,r)=>a+r.plan,0);
+  switch(p.modo){
+    case"pct":return rows.map(r=>r2(r.plan*(1+p.valor/100)));
+    case"suma":case"fijo":{const obj=p.modo==="suma"?tot+p.valor:p.valor;const k=obj/tot;return rows.map(r=>r2(r.plan*k));}
+    case"actuals":return rows.map(r=>r2(r.act*p.valor));
+    case"original":return rows.map(r=>r2(r.base*p.valor));
+  }
+}
+function validar(rows,p){
+  if(!rows.length)return"No hay registros con esa selección.";
+  const tot=rows.reduce((a,r)=>a+r.plan,0);
+  if(p.modo==="pct"&&p.valor<=-100)return"El porcentaje debe ser mayor a -100.";
+  if(p.modo==="fijo"&&p.valor<0)return"El valor fijo no puede ser negativo.";
+  if((p.modo==="actuals"||p.modo==="original")&&p.valor<0)return"El factor no puede ser negativo.";
+  if((p.modo==="suma"||p.modo==="fijo")&&tot===0)return"El Plan actual es 0; no se puede repartir.";
+  const n=nuevosPorRegistro(rows,p);
+  if(n.some(v=>v<0))return"El ajuste dejaría valores negativos en el Plan.";
+  return null;
+}
+/* ================== Estado y Fabric ================== */
+const $=id=>document.getElementById(id);
+const S={modo:"demo",rows:[],cfg:{tenant:"fcacfa0a-5870-4705-84b2-fbdd2393c629",client:"1c9ee20a-7966-409e-82da-f45df1a46ebd",urlAj:"https://87b1e93456f44893abd5adbc6910ed8e.z87.userdatafunctions.fabric.microsoft.com/v1/workspaces/87b1e934-56f4-4893-abd5-adbc6910ed8e/userDataFunctions/c063de71-75cf-43b5-9c41-9e72fe32a0bc/functions/ajustar_plan_formula/invoke",urlLe:"https://87b1e93456f44893abd5adbc6910ed8e.z87.userdatafunctions.fabric.microsoft.com/v1/workspaces/87b1e934-56f4-4893-abd5-adbc6910ed8e/userDataFunctions/c063de71-75cf-43b5-9c41-9e72fe32a0bc/functions/obtener_plan/invoke"},msal:null,hist:[]};
+function cfgLoad(){try{const g=JSON.parse(localStorage.getItem("capturaCfg")||"{}");for(const k in g)if(g[k])S.cfg[k]=g[k];}catch(e){}}
+function cfgSave(){try{localStorage.setItem("capturaCfg",JSON.stringify(S.cfg));}catch(e){}}
+async function token(){
+  if(!window.msal)throw new Error("No se pudo cargar la librería de inicio de sesión (msal).");
+  if(!S.msal){S.msal=new msal.PublicClientApplication({auth:{clientId:S.cfg.client,authority:"https://login.microsoftonline.com/"+S.cfg.tenant,redirectUri:location.origin},cache:{cacheLocation:"sessionStorage"}});await S.msal.initialize();}
+  const scopes=["https://analysis.windows.net/powerbi/api/.default"];
+  const acc=S.msal.getAllAccounts()[0];
+  try{if(acc)return(await S.msal.acquireTokenSilent({scopes,account:acc})).accessToken;}catch(e){}
+  return(await S.msal.acquireTokenPopup({scopes})).accessToken;
+}
+async function invocar(url,cuerpo){
+  const t=await token();
+  const res=await fetch(url,{method:"POST",headers:{"Authorization":"Bearer "+t,"Content-Type":"application/json"},body:JSON.stringify(cuerpo)});
+  if(!res.ok)throw new Error("Fabric respondió "+res.status+". Revisa permisos y la URL de la función.");
+  const j=await res.json();
+  if(j.status&&j.status!=="Succeeded")throw new Error((j.errors&&j.errors[0]&&(j.errors[0].message||j.errors[0]))||"La función no terminó bien.");
+  return j.output;
+}
+async function cargar(){
+  if(S.modo==="demo"){S.rows=demoRows();return;}
+  if(S.modo==="local"){
+    const r=await fetch("/api/plan");const j=await r.json();
+    if(!r.ok||j.error)throw new Error(j.error||("El servidor local respondió "+r.status));
+    S.rows=typeof j.output==="string"?JSON.parse(j.output):j.output;return;}
+  if(!S.cfg.urlLe||!S.cfg.client||!S.cfg.tenant)throw new Error("Falta la configuración de Fabric.");
+  const out=await invocar(S.cfg.urlLe,{});
+  S.rows=typeof out==="string"?JSON.parse(out):out;
+}
+/* ================== Interfaz ================== */
+const fmtM=x=>(x/1e6).toLocaleString("es-MX",{minimumFractionDigits:1,maximumFractionDigits:1})+" M";
+const fmtP=x=>(x*100).toLocaleString("es-MX",{minimumFractionDigits:1,maximumFractionDigits:1})+"%";
+function sel(){return{cat:$("fCat").value,reg:$("fReg").value,sub:$("fSub").value,tri:$("fTri").value};}
+function filas(s=sel()){return S.rows.filter(r=>(!s.cat||r.cat===s.cat)&&(!s.reg||r.reg===s.reg)&&(!s.sub||r.sub===s.sub)&&(!s.tri||r.tri===s.tri));}
+function opciones(id,valores,actual){const e=$(id);e.innerHTML="";const o0=document.createElement("option");o0.value="";o0.textContent="Todas";e.appendChild(o0);
+  [...new Set(valores)].forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;e.appendChild(o);});
+  e.value=valores.includes(actual)?actual:"";}
+function llenarFiltros(){
+  const s=sel();
+  opciones("fCat",S.rows.map(r=>r.cat),s.cat);
+  opciones("fReg",S.rows.map(r=>r.reg),s.reg);
+  opciones("fSub",S.rows.filter(r=>!$("fReg").value||r.reg===$("fReg").value).map(r=>r.sub),s.sub);
+  opciones("fTri",S.rows.map(r=>r.tri),s.tri);
+}
+function pintar(cambiadas){
+  const rs=filas();const plan=rs.reduce((a,r)=>a+r.plan,0),base=rs.reduce((a,r)=>a+r.base,0),act=rs.reduce((a,r)=>a+r.act,0);
+  $("kOrig").textContent=fmtM(base);$("kPlan").textContent=fmtM(plan);$("kAct").textContent=fmtM(act);
+  const v=act-plan;$("kVar").textContent=(v>=0?"+":"")+fmtM(v);$("kVar").className="n "+(v<0?"neg":"pos");
+  $("kVarP").textContent=plan?fmtP(v/plan):"–";$("kVarP").className="n "+(v<0?"neg":"pos");
+  // tabla
+  const cats=[...new Set(S.rows.filter(r=>!$("fCat").value||r.cat===$("fCat").value).map(r=>r.cat))];
+  const tris=[...new Set(S.rows.map(r=>r.tri))];const s=sel();
+  let h="<tr><th>Categoría</th>"+tris.map(t=>`<th>${t} Plan</th><th>${t} original</th>`).join("")+"</tr>";
+  for(const c of cats){h+=`<tr><td>${c}</td>`;
+    for(const t of tris){const q=S.rows.filter(r=>r.cat===c&&r.tri===t&&(!s.reg||r.reg===s.reg)&&(!s.sub||r.sub===s.sub));
+      const p=q.reduce((a,r)=>a+r.plan,0),b=q.reduce((a,r)=>a+r.base,0);
+      const ch=Math.abs(p-b)>1&&true;
+      h+=`<td class="${ch?"chg":""}">${(p/1e6).toFixed(1)}</td><td>${(b/1e6).toFixed(1)}</td>`;}
+    h+="</tr>";}
+  $("tbl").innerHTML=h;
+  previa();
+}
+function previa(){
+  const rs=filas(),el=$("prev"),btn=$("save");const txt=$("fx").value;
+  btn.disabled=true;el.className="prev";
+  if(!txt.trim()){el.textContent=rs.length?`Plan actual de la selección: ${fmtM(rs.reduce((a,r)=>a+r.plan,0))} (${rs.length} registros).`:"No hay registros con esa selección.";return;}
+  const p=interpretar(txt);if(p.error){el.textContent=p.error;el.className="prev error";return;}
+  const e=validar(rs,p);if(e){el.textContent=e;el.className="prev error";return;}
+  const ant=rs.reduce((a,r)=>a+r.plan,0),nue=nuevosPorRegistro(rs,p).reduce((a,x)=>a+x,0);
+  el.textContent=`Plan: ${fmtM(ant)} → ${fmtM(nue)} (${ant?(nue>=ant?"+":"")+fmtP((nue-ant)/ant):"–"}) en ${rs.length} registros.`;el.className="prev ok";btn.disabled=false;
+}
+function aviso(t,err){$("msg").innerHTML=t?`<div class="msg ${err?"err":""}"></div>`:"";if(t)$("msg").firstChild.textContent=t;}
+async function guardar(){
+  const rs=filas(),s=sel(),txt=$("fx").value.trim(),p=interpretar(txt);
+  if(p.error||validar(rs,p))return;
+  const btn=$("save");btn.disabled=true;btn.textContent="Guardando…";
+  const antes=rs.reduce((a,r)=>a+r.plan,0);
+  try{
+    if(S.modo==="demo"){const n=nuevosPorRegistro(rs,p);rs.forEach((r,i)=>r.plan=n[i]);}
+    else if(S.modo==="local"){
+      const r=await fetch("/api/ajustar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({categoria:s.cat,region:s.reg,subregion:s.sub,trimestre:s.tri,formula:txt})});
+      const j=await r.json();if(!r.ok||j.error)throw new Error(j.error||("El servidor local respondió "+r.status));
+      aviso(String(j.output));await cargar();
+    }
+    else{
+      const out=await invocar(S.cfg.urlAj,{categoria:s.cat,region:s.reg,subregion:s.sub,trimestre:s.tri,formula:txt});
+      aviso(String(out));await cargar();
+    }
+    const despues=filas(s).reduce((a,r)=>a+r.plan,0);
+    S.hist.unshift(`${new Date().toLocaleTimeString("es-MX")} · ${[s.cat,s.reg,s.sub,s.tri].filter(Boolean).join(" › ")||"Todo el Plan"} · ${txt} · ${fmtM(antes)} → ${fmtM(despues)}`);
+    $("hist").innerHTML=S.hist.map(h=>"<li></li>").join("");[...$("hist").children].forEach((li,i)=>li.textContent=S.hist[i]);
+    if(S.modo==="demo")aviso(`Plan ajustado en ${rs.length} registros. Antes: ${fmtM(antes)} · Después: ${fmtM(despues)}.`);
+    $("fx").value="";llenarFiltros();pintar();
+  }catch(e){aviso(e.message||String(e),true);}
+  btn.textContent="Aplicar ajuste";previa();
+}
+function modo(m){
+  S.modo=m;$("mDemo").classList.toggle("on",m==="demo");$("mLocal").classList.toggle("on",m==="local");$("mFabric").classList.toggle("on",m==="fabric");
+  $("banner").textContent=m==="demo"?"Modo demo: datos ficticios guardados solo en esta página.":m==="local"?"Modo local: los cambios se guardan en Fabric a través del programa servidor_local.py que corre en tu computadora.":"Modo Fabric: la página inicia sesión por sí sola (requiere el registro de la aplicación en Entra).";
+  aviso("");
+  cargar().then(()=>{llenarFiltros();pintar();}).catch(e=>{aviso(e.message,true);if(m!=="demo"){S.rows=[];llenarFiltros();pintar();}});
+}
+/* ================== Arranque ================== */
+["fCat","fReg","fSub","fTri"].forEach(id=>$(id).addEventListener("change",()=>{if(id==="fReg"){const s=sel();opciones("fSub",S.rows.filter(r=>!$("fReg").value||r.reg===$("fReg").value).map(r=>r.sub),s.sub);}pintar();}));
+$("fx").addEventListener("input",previa);
+$("fx").addEventListener("keydown",e=>{if(e.key==="Enter"&&!$("save").disabled)guardar();});
+$("save").addEventListener("click",guardar);
+for(const f of ["+10%","-5%","+2m","=150m","=actuals","=actuals*1.05","=original"]){const b=document.createElement("button");b.className="chip";b.textContent=f;b.type="button";b.onclick=()=>{$("fx").value=f;previa();$("fx").focus();};$("chips").appendChild(b);}
+$("refBtn").onclick=()=>{if(S.modo==="demo"){aviso("En modo demo no hay nada que actualizar.");return;}aviso("");modo(S.modo);};
+$("mDemo").onclick=()=>modo("demo");$("mLocal").onclick=()=>modo("local");$("mFabric").onclick=()=>modo("fabric");
+$("cfgBtn").onclick=()=>{$("cTenant").value=S.cfg.tenant;$("cClient").value=S.cfg.client;$("cUrlAj").value=S.cfg.urlAj;$("cUrlLe").value=S.cfg.urlLe;$("dlg").showModal();};
+$("cCancel").onclick=()=>$("dlg").close();
+$("cOk").onclick=()=>{S.cfg={tenant:$("cTenant").value.trim(),client:$("cClient").value.trim(),urlAj:$("cUrlAj").value.trim(),urlLe:$("cUrlLe").value.trim()};S.msal=null;cfgSave();$("dlg").close();if(S.modo!=="demo")modo(S.modo);};
+cfgLoad();modo("demo");
+</script>
+</body>
+</html>
